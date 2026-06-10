@@ -1,0 +1,4 @@
+# Nothing to ignore yet — this is a plain static app with no build artifacts.
+# (Your personal data lives in the browser, not in these files.)
+.DS_Store
+Thumbs.db
