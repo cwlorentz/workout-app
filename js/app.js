@@ -746,9 +746,20 @@ window.WApp = window.WApp || {};
     else go("home");
   }
 
-  // register the service worker (offline support) only when hosted
+  // Register the service worker (offline support) only when hosted.
   if ("serviceWorker" in navigator && location.protocol.indexOf("http") === 0) {
-    navigator.serviceWorker.register("service-worker.js").catch(function () {});
+    navigator.serviceWorker.register("service-worker.js").then(function (reg) {
+      // Check for a newer version each time the app opens.
+      reg.update();
+    }).catch(function () {});
+
+    // When a new version takes over, reload once so you see it immediately.
+    var refreshed = false;
+    navigator.serviceWorker.addEventListener("controllerchange", function () {
+      if (refreshed) return;
+      refreshed = true;
+      window.location.reload();
+    });
   }
 
   boot();
