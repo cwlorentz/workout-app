@@ -4,7 +4,7 @@
    Bump CACHE_VERSION whenever you change app files to force an update.
    ===================================================================== */
 
-var CACHE_VERSION = "mylift-v1";
+var CACHE_VERSION = "mylift-v2";
 var FILES = [
   "./",
   "./index.html",

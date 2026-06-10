@@ -604,6 +604,22 @@ window.WApp = window.WApp || {};
       '    <label class="toggle"><input id="s_vibrate" type="checkbox"' + (s.vibrateOn ? " checked" : "") + '> Vibrate when rest ends</label>' +
       '  </section>' +
 
+      '  <section class="block">' +
+      '    <h2>Backup &amp; restore</h2>' +
+      '    <p class="muted">Your data lives only on this device. Save a backup file so you can restore it if you clear your browser, switch phones, or reinstall.</p>' +
+      '    <button id="s_export" class="ghost" style="margin-top:0">⬇️ Save a backup file</button>' +
+      '    <button id="s_import" class="ghost">⬆️ Restore from a backup file</button>' +
+      '    <input id="s_import_file" type="file" accept="application/json,.json" style="display:none">' +
+      '    <details class="backup-text"><summary>Or use a backup code (copy/paste)</summary>' +
+      '      <p class="muted tiny">Handy if saving files is awkward on your phone — copy this text somewhere safe (a note, an email to yourself).</p>' +
+      '      <textarea id="s_backup_text" rows="5" readonly></textarea>' +
+      '      <div class="row2">' +
+      '        <button id="s_copy" class="ghost" style="margin-top:0">📋 Copy code</button>' +
+      '        <button id="s_paste" class="ghost" style="margin-top:0">↩️ Restore from code</button>' +
+      '      </div>' +
+      '    </details>' +
+      '  </section>' +
+
       '  <button id="s_save" class="primary big">Save changes</button>' +
       '  <button id="s_reset" class="danger">Reset all data</button>' +
       '  <p class="muted center tiny">Everything is stored only on this device.</p>' +
@@ -643,11 +659,84 @@ window.WApp = window.WApp || {};
       go("home");
     };
 
+    // ---- Backup & restore wiring ----
+    var backupText = document.getElementById("s_backup_text");
+    backupText.value = S.exportText();
+
+    document.getElementById("s_export").onclick = function () {
+      var name = (S.get().profile.name || "mylift").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      var stamp = new Date().toISOString().slice(0, 10);
+      downloadFile(name + "-backup-" + stamp + ".json", S.exportText());
+    };
+
+    document.getElementById("s_import").onclick = function () {
+      document.getElementById("s_import_file").click();
+    };
+    document.getElementById("s_import_file").onchange = function (e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () { applyRestore(reader.result); };
+      reader.onerror = function () { alert("Couldn't read that file."); };
+      reader.readAsText(file);
+    };
+
+    document.getElementById("s_copy").onclick = function () {
+      var ok = copyText(backupText.value);
+      alert(ok ? "Backup code copied. Paste it somewhere safe!" : "Couldn't copy automatically — tap and hold the text box to copy it manually.");
+    };
+    document.getElementById("s_paste").onclick = function () {
+      var pasted = prompt("Paste your backup code here to restore:");
+      if (pasted) applyRestore(pasted);
+    };
+
     document.getElementById("s_reset").onclick = function () {
       if (!confirm("Erase ALL data and start over? This cannot be undone.")) return;
       S.reset();
       go("onboarding");
     };
+  }
+
+  /* Confirm, restore, and bounce to the home screen. */
+  function applyRestore(text) {
+    if (!confirm("Restore this backup? It will replace the data currently on this device.")) return;
+    var res = S.importText(text);
+    if (!res.ok) { alert(res.error || "Restore failed."); return; }
+    alert("Restored! Welcome back.");
+    go("home");
+  }
+
+  /* Trigger a file download in the browser (works as 'share/save' on phones). */
+  function downloadFile(filename, text) {
+    try {
+      var blob = new Blob([text], { type: "application/json" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(url); }, 1000);
+    } catch (e) {
+      alert("Couldn't create the file on this browser — use the backup code option instead.");
+    }
+  }
+
+  /* Copy text to the clipboard, with a fallback for older mobile browsers. */
+  function copyText(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (e) {}
+    try {
+      var ta = document.getElementById("s_backup_text");
+      ta.removeAttribute("readonly");
+      ta.select(); ta.setSelectionRange(0, 999999);
+      var ok = document.execCommand("copy");
+      ta.setAttribute("readonly", "readonly");
+      return ok;
+    } catch (e) { return false; }
   }
 
   /* ---------------- boot ---------------- */

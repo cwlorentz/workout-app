@@ -86,9 +86,44 @@ WApp.Storage = (function () {
     save();
   }
 
+  /* ---- Backup & Restore ----
+     exportText(): the entire app state as a tidy text string to save in a file.
+     importText(): take that string back and replace the current data with it. */
+
+  function exportText() {
+    var payload = {
+      _app: "MyLift",
+      _version: 1,
+      _exportedAt: new Date().toISOString(),
+      data: state
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  function importText(text) {
+    var parsed;
+    try {
+      parsed = JSON.parse(text);
+    } catch (e) {
+      return { ok: false, error: "That doesn't look like a valid backup file." };
+    }
+    // Accept either a wrapped backup ({ _app, data }) or a raw state object.
+    var incoming = parsed && parsed.data ? parsed.data : parsed;
+    if (!incoming || typeof incoming !== "object" ||
+        !("profile" in incoming) || !("settings" in incoming)) {
+      return { ok: false, error: "This file isn't a MyLift backup." };
+    }
+    // Merge onto defaults so any missing/older fields are filled in safely.
+    state = deepDefaults(incoming, defaults());
+    save();
+    return { ok: true };
+  }
+
   return {
     get: function () { return state; },
     save: save,
-    reset: reset
+    reset: reset,
+    exportText: exportText,
+    importText: importText
   };
 })();
